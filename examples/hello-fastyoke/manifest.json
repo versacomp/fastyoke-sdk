@@ -1,0 +1,10 @@
+{
+  "id": "fastyoke.hello",
+  "version": "0.1.0",
+  "components": [
+    { "name": "HelloCard", "block_type": "custom:hello_card" }
+  ],
+  "pages": [],
+  "required_scopes": ["data:read"],
+  "fastyoke_sdk": ">=0.1.0 <1.0.0"
+}
