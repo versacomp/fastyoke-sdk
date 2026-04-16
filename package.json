@@ -1,6 +1,6 @@
 {
   "name": "@fastyoke/sdk",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Public SDK for FastYoke extensions — typed API clients, React primitives, and the extension loader contract.",
   "license": "MIT",
   "type": "module",

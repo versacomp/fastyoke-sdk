@@ -8,6 +8,12 @@ While the package is pre-1.0 **no minor version is guaranteed stable** — any r
 
 ## [Unreleased]
 
+## [0.1.3] — 2026-04-16
+
+### Added
+
+- `ExtensionsClient.activate(id)` — re-enable a previously-deactivated extension row, or roll back to an older version. Any currently-active version of the same extension is deactivated in the same transaction on the server, so the "one active version per tenant" invariant holds.
+
 <!-- Accumulate entries here while working on the next release. Move them to a dated, versioned section on publish. -->
 
 ## [0.1.2] — 2026-04-16
@@ -16,9 +22,14 @@ While the package is pre-1.0 **no minor version is guaranteed stable** — any r
 
 - Publish pipeline migrated to GitHub Actions. Tag push (`sdk-v*`) triggers build + public-mirror sync + `npm publish`. See `RELEASING.md` in the source repo for the full flow.
 
+### Fixed
+
+- `npm run dev` no longer fails under Node 20 in Docker with "This file is in /public and will be copied as-is during build" / "The entry point 'react' cannot be marked as external". The host-side plugin that rewrote bare `react` / `@fastyoke/sdk` imports to `/shared/*.mjs` now runs only during `vite build`; dev mode falls back to vite's native dep handling. Consumer-facing behaviour unchanged.
+
 ### Notes
 
 - The `publishConfig.provenance` flag has been removed. npm requires a public GitHub Actions source repo to attach provenance attestations; this package is currently built from a private monorepo. No functional impact on consumers — install and usage are identical.
+- **Dev-mode caveat re-documented:** extensions loaded under `vite serve` see a different React / SDK module instance than the host. Hook-based integration testing of extensions should run against `npm run build && npm run preview`. Production builds are unaffected.
 
 ## [0.1.1] — 2026-04-16
 

@@ -47,6 +47,37 @@ export class ExtensionsClient {
   }
 
   /**
+   * Re-activate a previously-deactivated extension row, flipping
+   * `is_active` back to 1. If another row of the same
+   * `extension_id` is currently active, it is deactivated in the
+   * same transaction so the "at most one active version per
+   * tenant" invariant holds.
+   *
+   * Two workflows use this:
+   *   - Revive an extension that was deactivated without a
+   *     replacement upload.
+   *   - Roll back to an older version — activate any row in the
+   *     version history, displacing whatever is currently active.
+   *
+   * Errors as ApiError:
+   *   - 400 if the target row is already active.
+   *   - 404 if the row does not exist in this tenant.
+   *   - 403 if the caller lacks admin / isn't running under a
+   *     user session.
+   */
+  async activate(id: string): Promise<ExtensionResponse> {
+    const qs = buildQuery(this.cfg);
+    const res = await this.cfg.fetcher(
+      apiUrl(
+        this.cfg,
+        `/api/v1/tenant/extensions/${encodeURIComponent(id)}/activate?${qs}`,
+      ),
+      { method: 'POST' },
+    );
+    return unwrapJson<ExtensionResponse>(res);
+  }
+
+  /**
    * Soft-delete (deactivate) the extension row. Flips `is_active` to 0
    * on the server; the table row stays for audit and rollback. A
    * subsequent upload of any version re-activates via the normal

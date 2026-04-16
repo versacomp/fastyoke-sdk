@@ -95,4 +95,30 @@ describe('ExtensionsClient', () => {
       message: 'not found',
     });
   });
+
+  it('activate() POSTs to /activate and returns the refreshed row', async () => {
+    const reactivated: ExtensionResponse = { ...EXT, is_active: true };
+    const { fetcher, requests } = makeMockFetcher([{ json: reactivated }]);
+    const client = new ExtensionsClient(makeConfig(fetcher));
+
+    const result = await client.activate('ext-1');
+
+    expect(requests[0].method).toBe('POST');
+    expect(requests[0].url).toBe(
+      '/api/v1/tenant/extensions/ext-1/activate?tenant_id=tenant-1',
+    );
+    expect(result).toEqual(reactivated);
+  });
+
+  it('activate() surfaces 400 when the row is already active', async () => {
+    const { fetcher } = makeMockFetcher([
+      { status: 400, json: { error: 'extension is already active' } },
+    ]);
+    const client = new ExtensionsClient(makeConfig(fetcher));
+
+    await expect(client.activate('ext-1')).rejects.toMatchObject({
+      status: 400,
+      message: 'extension is already active',
+    });
+  });
 });

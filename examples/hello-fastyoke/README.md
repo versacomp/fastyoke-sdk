@@ -34,11 +34,12 @@ cleanly.
 This extension demonstrates that by calling `useFastYoke()` and
 rendering the tenant/project IDs pulled from the host's provider.
 
-Dev and production behave the same way here — a vite plugin
-(`sharedImports` in `frontend/vite.config.ts`) rewrites the
-externalized specifiers to the same `/shared/*.mjs` URLs extensions
-resolve to, so hook-based integrations work identically in
-`npm run dev` and `npm run build && npm run preview`.
+**Dev-mode caveat:** in `npm run dev`, vite consumes the SDK + React
+through its dep optimizer, while extensions still resolve via the
+import map to `/shared/*.mjs`. Those are different module instances,
+so `useFastYoke()` inside a dev-loaded extension won't see the host
+provider. Test hook-based integrations against `npm run build &&
+npm run preview` — production behaviour is unaffected.
 
 As of Phase 3 Step 1b, `react` and `react/jsx-runtime` are also on the
 import map. The extension uses plain `import { useState } from 'react'`
