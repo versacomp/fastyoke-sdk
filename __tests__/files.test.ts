@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -18,7 +19,9 @@ describe('FilesClient', () => {
 
     expect(requests[0].url).toContain('/api/v1/tenant/files/file%20abc%2F123?');
     expect(parseQs(requests[0].url)).toEqual({ tenant_id: 'tenant-1' });
-    expect(result).toBeInstanceOf(Blob);
+    // Duck-typed Blob check — see entities.test.ts for reasoning.
+    expect(result.constructor.name).toBe('Blob');
+    expect(typeof result.arrayBuffer).toBe('function');
     expect(await result.text()).toBe('binary-data');
   });
 

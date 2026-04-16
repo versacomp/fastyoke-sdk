@@ -1,3 +1,9 @@
+// @vitest-environment node
+// Wire-shape tests use Node's native fetch/Response/Blob primitives
+// directly (see __tests__/helpers.ts). Running under jsdom trips
+// cross-realm class issues — Response.blob() returns a Node Blob,
+// but `toBeInstanceOf(Blob)` binds to the jsdom Blob in the test
+// globals. Node env keeps the classes consistent.
 import { describe, expect, it } from 'vitest';
 
 import { ApiError, apiUrl, buildQuery, unwrapJson } from '../client/core';

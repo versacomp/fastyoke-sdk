@@ -69,13 +69,31 @@ export function makeMockFetcher(script: ScriptEntry[]): MockFetcherHandle {
       );
     }
     const status = entry.status ?? 200;
+    // Per the Fetch spec, these statuses MUST have a null body.
+    // The native Response constructor in Node 20+ throws on any
+    // non-null body with these codes.
+    const nullBody = status === 204 || status === 205 || status === 304;
+
     if (entry.blob !== undefined) {
-      return new Response(entry.blob, { status });
+      // jsdom's Blob and Node's Response are different classes in
+      // vitest's default environment: handing a jsdom Blob straight
+      // to Response trips `object.stream is not a function` because
+      // Response expects its own Blob/stream shape. Reading the
+      // Blob into an ArrayBuffer first sidesteps the mismatch;
+      // Response.blob() / .text() on the resulting body behave
+      // identically for consumer assertions.
+      const buf = await entry.blob.arrayBuffer();
+      return new Response(nullBody ? null : buf, {
+        status,
+        headers: {
+          'content-type': entry.blob.type || 'application/octet-stream',
+        },
+      });
     }
     if (entry.text !== undefined) {
-      return new Response(entry.text, { status });
+      return new Response(nullBody ? null : entry.text, { status });
     }
-    return new Response(JSON.stringify(entry.json), {
+    return new Response(nullBody ? null : JSON.stringify(entry.json), {
       status,
       headers: { 'content-type': 'application/json' },
     });

@@ -136,6 +136,8 @@ An extension running with `["data:read", "workflow:execute"]` can list entities 
 
 This package follows **SemVer from 1.0 onward**. Anything `0.x.y` is experimental — minor versions may rename types, move exports, or change method signatures. When 1.0 ships, breaking changes require a major bump and a deprecation cycle.
 
+See [CHANGELOG.md](./CHANGELOG.md) for what changed in each release.
+
 Pin exact versions during the 0.x window:
 
 ```json

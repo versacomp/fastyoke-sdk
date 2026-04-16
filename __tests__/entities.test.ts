@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
 import { EntitiesClient } from '../client/entities';
@@ -85,7 +86,12 @@ describe('EntitiesClient', () => {
     const result = await client.exportPdf('shipment', 'entity-42');
 
     expect(requests[0].url.startsWith('/api/v1/tenant/entities/shipment/entity-42/pdf?')).toBe(true);
-    expect(result).toBeInstanceOf(Blob);
+    // Duck-typed Blob check: `toBeInstanceOf(Blob)` is flaky because
+    // Response.blob() may return a class from a different realm than
+    // the test-file's globalThis.Blob (undici internals vs
+    // node:buffer). What consumers care about is the interface.
+    expect(result.constructor.name).toBe('Blob');
+    expect(typeof result.arrayBuffer).toBe('function');
     expect(await result.text()).toBe('%PDF-1.4 …');
   });
 
