@@ -10,6 +10,16 @@ While the package is pre-1.0 **no minor version is guaranteed stable** — any r
 
 <!-- Accumulate entries here while working on the next release. Move them to a dated, versioned section on publish. -->
 
+## [0.1.2] — 2026-04-16
+
+### Changed
+
+- Publish pipeline migrated to GitHub Actions. Tag push (`sdk-v*`) triggers build + public-mirror sync + `npm publish`. See `RELEASING.md` in the source repo for the full flow.
+
+### Notes
+
+- The `publishConfig.provenance` flag has been removed. npm requires a public GitHub Actions source repo to attach provenance attestations; this package is currently built from a private monorepo. No functional impact on consumers — install and usage are identical.
+
 ## [0.1.1] — 2026-04-16
 
 ### Changed
