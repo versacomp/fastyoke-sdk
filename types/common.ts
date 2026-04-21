@@ -41,6 +41,11 @@ export const SchemaResponseZ = z.object({
   is_active: z.boolean(),
   created_at: z.string(),
   entity_name: z.string().optional().nullable(),
+  /// Phase 17: `true` when this schema is a copy of a master template
+  /// from the organization's master tenant. Editors render inherited
+  /// rows as read-only. Optional so older servers without migration
+  /// 0030 / migrations_tenant/0002 still parse.
+  inherited_from_master: z.boolean().optional(),
 });
 export type SchemaResponse = z.infer<typeof SchemaResponseZ>;
 
@@ -93,6 +98,8 @@ export type EntityResponse = z.infer<typeof EntityResponseZ>;
 export const ExtensionManifestComponentZ = z.object({
   name: z.string(),
   block_type: z.string(),
+  display_name: z.string().optional(),
+  default_config: z.record(z.string(), z.unknown()).optional(),
 });
 export type ExtensionManifestComponent = z.infer<typeof ExtensionManifestComponentZ>;
 

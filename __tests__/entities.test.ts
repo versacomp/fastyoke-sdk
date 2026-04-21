@@ -106,4 +106,66 @@ describe('EntitiesClient', () => {
       message: 'pdf renderer crashed',
     });
   });
+
+  // -------------------------------------------------------------------------
+  // Phase 21.8.2
+  // -------------------------------------------------------------------------
+
+  it('create() POSTs data_payload wrapped with tenant_id', async () => {
+    const { fetcher, requests } = makeMockFetcher([{ json: RECORD }]);
+    const client = new EntitiesClient(makeConfig(fetcher));
+
+    const result = await client.create('shipment', { tracking_number: 'Z12345' });
+
+    expect(requests[0].method).toBe('POST');
+    expect(requests[0].url).toBe('/api/v1/tenant/entities/shipment');
+    expect(requests[0].body).toEqual({
+      tenant_id: 'tenant-1',
+      data_payload: { tracking_number: 'Z12345' },
+    });
+    expect(result).toEqual(RECORD);
+  });
+
+  it('create() forwards project_id when the client config sets it', async () => {
+    const { fetcher, requests } = makeMockFetcher([{ json: RECORD }]);
+    const client = new EntitiesClient(
+      makeConfig(fetcher, { projectId: 'proj-7' }),
+    );
+
+    await client.create('shipment', { origin: 'SFO' });
+
+    expect(requests[0].body).toEqual({
+      tenant_id: 'tenant-1',
+      project_id: 'proj-7',
+      data_payload: { origin: 'SFO' },
+    });
+  });
+
+  it('delete() issues DELETE with tenant_id query and resolves void on 204', async () => {
+    const { fetcher, requests } = makeMockFetcher([{ status: 204, json: null }]);
+    const client = new EntitiesClient(makeConfig(fetcher));
+
+    const result = await client.delete('shipment', 'entity-42');
+
+    expect(requests[0].method).toBe('DELETE');
+    expect(
+      requests[0].url.startsWith('/api/v1/tenant/entities/shipment/entity-42?'),
+    ).toBe(true);
+    expect(parseQs(requests[0].url)).toEqual({ tenant_id: 'tenant-1' });
+    expect(result).toBeUndefined();
+  });
+
+  it('delete() surfaces 404 as ApiError without attempting body parse', async () => {
+    // Cross-tenant / unknown id → 404 from the 21.8.1 handler. The
+    // body here carries the canonical { error } envelope.
+    const { fetcher } = makeMockFetcher([
+      { status: 404, json: { error: 'not found' } },
+    ]);
+    const client = new EntitiesClient(makeConfig(fetcher));
+
+    await expect(client.delete('shipment', 'ghost')).rejects.toMatchObject({
+      status: 404,
+      message: 'not found',
+    });
+  });
 });

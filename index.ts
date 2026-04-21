@@ -33,6 +33,16 @@ export {
   extractFileId,
 } from './client/files';
 export { ExtensionsClient } from './client/extensions';
+export {
+  RealtimeClient,
+  type RealtimeEvent,
+  type RealtimeListener,
+  type TransitionRealtimeEvent,
+  type EntityMutationRealtimeEvent,
+  type WebSocketLike,
+  type SocketFactory,
+  type RealtimeClientOptions,
+} from './client/realtime';
 
 export {
   FastYokeProvider,
@@ -49,8 +59,43 @@ export {
   type LoadedExtension,
   type ExtensionBlockProps,
   type ExtensionPageProps,
+  type CustomBlockDescriptor,
 } from './react/ExtensionRegistry';
 export { ExtensionErrorBoundary } from './react/ExtensionErrorBoundary';
+
+// Phase 21.8.3 — React data hooks
+export {
+  // Read hooks: { data, loading, error, refetch }
+  useEntities,
+  useEntity,
+  useJobs,
+  useJob,
+  useJobHistory,
+  useSchemas,
+  useSchema,
+  useActiveSchemas,
+  // Write hooks: { <verb>, loading, error, result }
+  useCreateEntity,
+  useUpdateEntity,
+  useDeleteEntity,
+  useSpawnJob,
+  useTransitionJob,
+  useCancelJob,
+  // Shared shapes
+  type ReadHookResult,
+  type RealtimeOptions,
+  type CreateEntityArgs,
+  type UpdateEntityArgs,
+  type DeleteEntityArgs,
+  type TransitionJobArgs,
+  type CancelJobArgs,
+} from './react/hooks';
+
+// Phase 21.8.4 — Drop-in workflow history viewer
+export {
+  WorkflowHistory,
+  type WorkflowHistoryProps,
+} from './react/WorkflowHistory';
 
 export {
   type SchemaDefinition,

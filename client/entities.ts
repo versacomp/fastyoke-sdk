@@ -1,5 +1,12 @@
 import type { EntityResponse } from '../types/common';
-import { ApiError, apiUrl, buildQuery, unwrapJson, type ClientConfig } from './core';
+import {
+  ApiError,
+  apiUrl,
+  buildQuery,
+  unwrapJson,
+  unwrapNoContent,
+  type ClientConfig,
+} from './core';
 
 export interface ListEntitiesParams {
   page?: number;
@@ -94,5 +101,58 @@ export class EntitiesClient {
       },
     );
     return unwrapJson<EntityResponse>(res);
+  }
+
+  /**
+   * Phase 21.8.2: POST a new entity record. The backend handler returns
+   * the freshly-inserted row (including server-generated `id`, timestamps,
+   * and any normalized fields) so callers don't need a follow-up GET.
+   *
+   * `projectId` on the client config, when set, is forwarded as
+   * `project_id` on the request body — matches how `JobsClient.create`
+   * scopes project ownership.
+   */
+  async create(
+    entityName: string,
+    dataPayload: Record<string, unknown>,
+  ): Promise<EntityResponse> {
+    const res = await this.cfg.fetcher(
+      apiUrl(
+        this.cfg,
+        `/api/v1/tenant/entities/${encodeURIComponent(entityName)}`,
+      ),
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenant_id: this.cfg.tenantId,
+          ...(this.cfg.projectId ? { project_id: this.cfg.projectId } : {}),
+          data_payload: dataPayload,
+        }),
+      },
+    );
+    return unwrapJson<EntityResponse>(res);
+  }
+
+  /**
+   * Phase 21.8.2: hard-delete an entity record. No soft-tombstone — the
+   * row is gone. Admins who need audit history on a given entity kind
+   * should run that kind through an FSM schema, which gives them
+   * `event_log` coverage. Matches the Phase 21.8 locked decisions.
+   *
+   * Backend returns 204 No Content; this resolver resolves `void` on
+   * success and throws `ApiError` on non-2xx (including 404 for
+   * unknown/cross-tenant ids and 403 for non-admin callers).
+   */
+  async delete(entityName: string, id: string): Promise<void> {
+    const qs = buildQuery(this.cfg);
+    const res = await this.cfg.fetcher(
+      apiUrl(
+        this.cfg,
+        `/api/v1/tenant/entities/${encodeURIComponent(entityName)}/${encodeURIComponent(id)}?${qs}`,
+      ),
+      { method: 'DELETE' },
+    );
+    return unwrapNoContent(res);
   }
 }

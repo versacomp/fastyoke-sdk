@@ -6,5 +6,5 @@
     "paths": {}
   },
   "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["tsup.config.ts", "dist", "__tests__"]
+  "exclude": ["tsup.config.ts", "dist", "**/__tests__/**"]
 }

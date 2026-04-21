@@ -83,6 +83,27 @@ export interface ExtensionPageProps {
   path: string;
 }
 
+/**
+ * Palette-ready descriptor for a registered `custom:*` block. Built
+ * from the owning extension's manifest so the page designer can
+ * render a button per custom block without walking `loaded` itself.
+ *
+ * `block_type` is typed as the `custom:${string}` template literal
+ * because the registry only promotes manifest entries whose
+ * `block_type` passes a `startsWith('custom:')` filter — hosts can
+ * rely on the prefix without re-checking.
+ */
+export interface CustomBlockDescriptor {
+  /** Fully-qualified block type, e.g. "custom:hello_card". */
+  block_type: `custom:${string}`;
+  /** Palette label — falls back to `block_type` when the manifest omits it. */
+  display_name: string;
+  /** Seed config inserted into new layout blocks. `{}` when absent. */
+  default_config: Record<string, unknown>;
+  /** Owning extension's manifest id (for grouping / tooltips). */
+  extension_id: string;
+}
+
 export interface ExtensionRegistryValue {
   /** All loaded extensions, in list order. */
   loaded: LoadedExtension[];
@@ -90,15 +111,33 @@ export interface ExtensionRegistryValue {
   componentsByBlockType: Map<string, ComponentType<ExtensionBlockProps>>;
   /** Reverse lookup: path → page component. */
   pagesByPath: Map<string, ComponentType<ExtensionPageProps>>;
+  /** Flat list of installed `custom:*` blocks for palette rendering. */
+  customBlocks: CustomBlockDescriptor[];
   /** True while the initial fetch + dynamic imports are in flight. */
   loading: boolean;
+  /**
+   * Re-fetch the active extension list + re-import every bundle.
+   * Call after an admin action that changes the active set — the
+   * Extensions admin wires this after Activate / Deactivate / Upload
+   * so the Page Designer's "Custom extension page" dropdown reflects
+   * the new state without a browser reload. Fire-and-forget; any
+   * network failure is console-warned and leaves the prior state
+   * intact.
+   */
+  refresh: () => void;
 }
 
 const EMPTY_REGISTRY: ExtensionRegistryValue = {
   loaded: [],
   componentsByBlockType: new Map(),
   pagesByPath: new Map(),
+  customBlocks: [],
   loading: false,
+  refresh: () => {
+    // No-op default for consumers rendered outside the provider —
+    // e.g., login, invite accept. Matches the rest of EMPTY_REGISTRY's
+    // inert behavior.
+  },
 };
 
 const ExtensionRegistryContext =
@@ -123,9 +162,19 @@ export function ExtensionProvider({
   children,
   enabled = true,
 }: ExtensionProviderProps) {
-  const { extensions: client } = useFastYoke();
+  const { extensions: client, fetcher: authFetcher } = useFastYoke();
   const [loaded, setLoaded] = useState<LoadedExtension[]>([]);
   const [loading, setLoading] = useState<boolean>(enabled);
+  // Monotonic counter the Activate/Deactivate/Upload flows bump via
+  // `refresh()`. Including it in the loader useEffect's dep array
+  // retriggers the full fetch + import pipeline without requiring a
+  // page reload. Starting at 0 means the initial mount loads once,
+  // just like before this slice.
+  const [refreshTick, setRefreshTick] = useState(0);
+
+  const refresh = useCallback(() => {
+    setRefreshTick((n) => n + 1);
+  }, []);
 
   useEffect(() => {
     if (!enabled) {
@@ -152,7 +201,9 @@ export function ExtensionProvider({
 
       const active = rows.filter((r) => r.is_active);
       const results = await Promise.all(
-        active.map((row) => loadOne(row, client.bundleUrl(row.id, row.bundle_sha256))),
+        active.map((row) =>
+          loadOne(row, client.bundleUrl(row.id, row.bundle_sha256), authFetcher),
+        ),
       );
 
       if (!cancelled) {
@@ -164,11 +215,12 @@ export function ExtensionProvider({
     return () => {
       cancelled = true;
     };
-  }, [client, enabled]);
+  }, [client, enabled, authFetcher, refreshTick]);
 
   const value = useMemo<ExtensionRegistryValue>(() => {
     const components = new Map<string, ComponentType<ExtensionBlockProps>>();
     const pages = new Map<string, ComponentType<ExtensionPageProps>>();
+    const customBlocks: CustomBlockDescriptor[] = [];
     for (const ext of loaded) {
       for (const [blockType, Comp] of Object.entries(ext.components)) {
         // Wrap every registered component in: (1) an error boundary,
@@ -185,14 +237,32 @@ export function ExtensionProvider({
         const Wrapped = wrapComponent(ext.manifest.id, ext.row.id, Page);
         pages.set(path, Wrapped);
       }
+      // Palette descriptors mirror the manifest, not the loaded module
+      // map — an extension row whose bundle failed to resolve a
+      // declared export still advertises the block_type here, so the
+      // designer can render a disabled / warning state later if we
+      // want it. For now, the render path's ExtensionErrorBoundary
+      // handles the mismatch gracefully.
+      for (const c of ext.manifest.components ?? []) {
+        if (!c.block_type.startsWith('custom:')) continue;
+        customBlocks.push({
+          // Safe: guarded by startsWith('custom:') above.
+          block_type: c.block_type as `custom:${string}`,
+          display_name: c.display_name ?? c.block_type,
+          default_config: c.default_config ?? {},
+          extension_id: ext.manifest.id,
+        });
+      }
     }
     return {
       loaded,
       componentsByBlockType: components,
       pagesByPath: pages,
+      customBlocks,
       loading,
+      refresh,
     };
-  }, [loaded, loading]);
+  }, [loaded, loading, refresh]);
 
   return (
     <ExtensionRegistryContext.Provider value={value}>
@@ -217,12 +287,31 @@ export function useExtensionRegistry(): ExtensionRegistryValue {
 async function loadOne(
   row: ExtensionResponse,
   bundleUrl: string,
+  fetcher: Fetcher,
 ): Promise<LoadedExtension | null> {
   let mod: Record<string, unknown>;
   try {
-    // @vite-ignore — this URL is computed at runtime. Vite's warning
-    // about non-analyzable imports is expected and intentional here.
-    mod = (await import(/* @vite-ignore */ bundleUrl)) as Record<string, unknown>;
+    // Fetch the bundle as text using the auth-aware fetcher (so the
+    // request carries the user's JWT — the endpoint requires auth),
+    // then import via a blob URL. The blob approach sidesteps vite's
+    // dev middleware, which otherwise intercepts proxied JS responses
+    // and rewrites their bare specifiers through its own module
+    // graph. A blob URL stays outside vite's transform pipeline, and
+    // the browser's import map (in index.html) still applies to bare
+    // specifiers inside the blob module because the import map is
+    // scoped to the browsing context, not the module URL.
+    const res = await fetcher(bundleUrl);
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+    const text = await res.text();
+    const blob = new Blob([text], { type: 'application/javascript' });
+    const blobUrl = URL.createObjectURL(blob);
+    try {
+      mod = (await import(/* @vite-ignore */ blobUrl)) as Record<string, unknown>;
+    } finally {
+      URL.revokeObjectURL(blobUrl);
+    }
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(
@@ -248,7 +337,23 @@ async function loadOne(
 
   const pages: Record<string, ComponentType<ExtensionPageProps>> = {};
   for (const p of row.manifest.pages ?? []) {
-    const exportValue = mod[p.name];
+    // Prefer the named export; fall back to `default` when the
+    // manifest names a page but the bundle only ships a default
+    // export (Phase 21.7.11 — the Advanced App Builder's template
+    // generator emitted `export default function ...` with a
+    // manifest name that didn't match any identifier, and every
+    // generated extension silently failed to mount).
+    let exportValue = mod[p.name];
+    if (typeof exportValue !== 'function' && typeof mod.default === 'function') {
+      exportValue = mod.default;
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[fastyoke-sdk] extension "${row.extension_id}" manifest page ` +
+          `"${p.name}" doesn't match a named export; falling back to ` +
+          `the module's default export. Rename the manifest page or ` +
+          `add a named export to silence this warning.`,
+      );
+    }
     if (typeof exportValue === 'function') {
       pages[p.path] = exportValue as ComponentType<ExtensionPageProps>;
     } else {

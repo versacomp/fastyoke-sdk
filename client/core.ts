@@ -46,6 +46,21 @@ export async function unwrapJson<T>(res: Response): Promise<T> {
   return (await res.json()) as T;
 }
 
+/**
+ * Companion to [`unwrapJson`] for endpoints that return 204 No Content on
+ * success — DELETE handlers, idempotent toggles, etc. Returns `void` instead
+ * of attempting to parse an empty body.
+ *
+ * Error payloads are still surfaced via `ApiError` exactly like the JSON
+ * case, so callers can `try / catch` uniformly.
+ */
+export async function unwrapNoContent(res: Response): Promise<void> {
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new ApiError(res.status, body.error ?? `HTTP ${res.status}`, body);
+  }
+}
+
 export function buildQuery(
   base: ClientConfig,
   extra?: Record<string, string | number | undefined | null>,

@@ -8,6 +8,32 @@ While the package is pre-1.0 **no minor version is guaranteed stable** — any r
 
 ## [Unreleased]
 
+<!-- Accumulate entries here while working on the next release. Move them to a dated, versioned section on publish. -->
+
+## [0.2.0] — 2026-04-21
+
+Phase 21.8 real-data extensions. The SDK graduates from "typed clients + extension primitives" to a full React hook surface that reads, writes, and subscribes to a tenant's live data — so LLM-authored extensions can stop shipping seed-data stubs and start rendering the real workflow state. Minor bump: surface grows, no existing method signatures break; external extensions pinned to `^0.1.x` keep working against 0.1.3 and opt into the new hooks by bumping their pin.
+
+### Added
+
+- **Entity CRUD completion.** `EntitiesClient.create(kind, dataPayload, options?)` and `EntitiesClient.delete(kind, id)` round out the client; `patch` and `list` / `get` were already present. `delete` is a hard delete — no tombstone, no `deleted_at`. Audit history comes from FSM-owned entities via `event_log`.
+- **React data hooks.** Eight read hooks (`useEntities`, `useEntity`, `useJobs`, `useJob`, `useJobHistory`, `useSchemas`, `useSchema`, `useActiveSchemas`) returning `{ data, loading, error, refetch }`, and six action hooks (`useCreateEntity`, `useUpdateEntity`, `useDeleteEntity`, `useSpawnJob`, `useTransitionJob`, `useCancelJob`) returning `{ <verb>, loading, error, result }`. Reads cancel cleanly on dep change + unmount via AbortSignal; actions are mount-ref guarded so post-unmount resolves don't set state. No optimistic updates — `loading=true` holds until the round-trip completes, keeping the SDK free of host-store coupling.
+- **`<WorkflowHistory jobId={...} />`** drop-in component over `useJobHistory`. Humanizes `__created__` / `__admin_cancel__` event-type sentinels, renders em-dash placeholders for null actor/reason, and ships with inline styling so iframe-isolated extensions render without the host stylesheet. `formatTimestamp`, `className`, and `style` props for theming.
+- **`RealtimeClient`.** One multiplexed WebSocket per `FastYokeProvider` mount, routing `kind`-tagged envelopes (`transition` / `entity_mutation`) to subscribers. Exponential reconnect (1s → 30s cap, reset on open). Consumes the backend's Phase 21.8.7 broadcaster — the same socket carries both FSM transitions and entity CRUD events. `RealtimeEvent`, `TransitionRealtimeEvent`, `EntityMutationRealtimeEvent`, `WebSocketLike`, `SocketFactory`, and `RealtimeClientOptions` are exported for consumers that want to wire the client up outside the provider.
+- **Realtime-aware hooks.** `useEntities` / `useEntity` / `useJobs` / `useJob` / `useJobHistory` all accept an optional `RealtimeOptions = { realtime?: boolean }` (default `true`). When enabled, the hook subscribes to the provider's shared socket and refetches on matching events — `useEntity(kind, id)` filters by `entity_name` + `record_id`; `useJob(id)` by `job_id`; `useEntities(kind)` by `entity_name`; `useJobs()` fires on any transition. Pass `{ realtime: false }` to opt out per call site.
+- **`unwrapNoContent(res)`** helper in `client/core.ts` for endpoints that return 204 — the existing `unwrapJson` chokes on empty bodies.
+
+### Changed
+
+- **`FastYokeProvider` props:** two new optional knobs. `realtime?: boolean` (default `true`) disables the shared WebSocket for SSR / test hosts that don't want a live connection. `socketFactory?: (url: string) => WebSocket` overrides the WebSocket constructor — tests inject a controllable fake; production leaves it unset.
+- **Context value:** `FastYokeContextValue` gains `realtime: RealtimeClient | null`. `null` when the provider is in opt-out mode; otherwise the shared client. Existing consumers that only destructure `{ schemas, jobs, entities, ... }` are unaffected.
+
+### Notes
+
+- `useUpdateEntity` delegates to the existing `EntitiesClient.patch` method (the underlying client method name did not change, to avoid a breaking rename for `^0.1.x` pinned extensions). `useJobHistory` delegates to `JobsClient.history`. Hook names favor readability; client method names favor stability.
+- Schemas have no backend broadcast today, so `useSchemas` / `useSchema` / `useActiveSchemas` have no realtime behavior and no `RealtimeOptions` argument. Admin-authored schema edits are rare and one-way; polling via `refetch()` is sufficient.
+- One WebSocket per `FastYokeProvider` instance means N sockets across tabs/devices per session. Scale concern materializes around 1k concurrent users per tenant; today's deployments handle that fine.
+
 ## [0.1.3] — 2026-04-16
 
 ### Added

@@ -1,8 +1,16 @@
 {
   "id": "fastyoke.hello",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "components": [
-    { "name": "HelloCard", "block_type": "custom:hello_card" }
+    {
+      "name": "HelloCard",
+      "block_type": "custom:hello_card",
+      "display_name": "Hello Card",
+      "default_config": {
+        "greeting": "Hello from the extension!",
+        "accent": "#10b981"
+      }
+    }
   ],
   "pages": [],
   "required_scopes": ["data:read"],
