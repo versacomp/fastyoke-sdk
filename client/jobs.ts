@@ -1,4 +1,8 @@
-import type { EventLogEntry, JobResponse } from '../types/common';
+import type {
+  EventLogEntry,
+  FsmAuditLogEntry,
+  JobResponse,
+} from '../types/common';
 import { apiUrl, buildQuery, unwrapJson, type ClientConfig } from './core';
 
 export interface ListJobsParams {
@@ -105,5 +109,18 @@ export class JobsClient {
       ),
     );
     return unwrapJson<EventLogEntry[]>(res);
+  }
+
+  /** Phase 25.4.5.3 — payload-snapshot audit ledger. Returns
+   *  oldest-first so consumers can render in chronological order. */
+  async audit(id: string): Promise<FsmAuditLogEntry[]> {
+    const qs = buildQuery(this.cfg);
+    const res = await this.cfg.fetcher(
+      apiUrl(
+        this.cfg,
+        `/api/v1/tenant/jobs/${encodeURIComponent(id)}/audit?${qs}`,
+      ),
+    );
+    return unwrapJson<FsmAuditLogEntry[]>(res);
   }
 }

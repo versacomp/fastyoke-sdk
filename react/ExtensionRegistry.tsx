@@ -191,7 +191,7 @@ export function ExtensionProvider({
         rows = await client.list();
       } catch (err) {
         if (!cancelled) {
-          // eslint-disable-next-line no-console
+
           console.warn('[fastyoke-sdk] failed to list extensions:', err);
           setLoaded([]);
           setLoading(false);
@@ -313,7 +313,7 @@ async function loadOne(
       URL.revokeObjectURL(blobUrl);
     }
   } catch (err) {
-    // eslint-disable-next-line no-console
+
     console.error(
       `[fastyoke-sdk] failed to import extension "${row.extension_id}" (${row.id}):`,
       err,
@@ -327,7 +327,7 @@ async function loadOne(
     if (typeof exportValue === 'function') {
       components[c.block_type] = exportValue as ComponentType<ExtensionBlockProps>;
     } else {
-      // eslint-disable-next-line no-console
+
       console.warn(
         `[fastyoke-sdk] extension "${row.extension_id}" manifest declares component ` +
           `"${c.name}" but the bundle does not export a function by that name.`,
@@ -346,7 +346,7 @@ async function loadOne(
     let exportValue = mod[p.name];
     if (typeof exportValue !== 'function' && typeof mod.default === 'function') {
       exportValue = mod.default;
-      // eslint-disable-next-line no-console
+
       console.warn(
         `[fastyoke-sdk] extension "${row.extension_id}" manifest page ` +
           `"${p.name}" doesn't match a named export; falling back to ` +
@@ -357,7 +357,7 @@ async function loadOne(
     if (typeof exportValue === 'function') {
       pages[p.path] = exportValue as ComponentType<ExtensionPageProps>;
     } else {
-      // eslint-disable-next-line no-console
+
       console.warn(
         `[fastyoke-sdk] extension "${row.extension_id}" manifest declares page ` +
           `"${p.name}" but the bundle does not export a function by that name.`,

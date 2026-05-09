@@ -155,4 +155,27 @@ export class EntitiesClient {
     );
     return unwrapNoContent(res);
   }
+
+  /**
+   * Phase 40.1: list every entity with ≥1 annotation row, sorted by
+   * entity_name. Feeds the CRUD Scaffold Builder's entity picker.
+   * Admin-only — non-admin callers get a 403.
+   */
+  async listAnnotated(): Promise<AnnotatedEntitySummariesResponse> {
+    const qs = buildQuery(this.cfg);
+    const res = await this.cfg.fetcher(
+      apiUrl(this.cfg, `/api/v1/tenant/entities/annotated?${qs}`),
+    );
+    return unwrapJson<AnnotatedEntitySummariesResponse>(res);
+  }
+}
+
+export interface AnnotatedEntitySummary {
+  entity_name: string;
+  field_count: number;
+  required_count: number;
+}
+
+export interface AnnotatedEntitySummariesResponse {
+  entities: AnnotatedEntitySummary[];
 }

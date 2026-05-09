@@ -27,7 +27,7 @@ export class ExtensionErrorBoundary extends Component<Props, State> {
   }
 
   override componentDidCatch(error: Error, info: ErrorInfo): void {
-    // eslint-disable-next-line no-console
+
     console.error(
       `[fastyoke-sdk] extension "${this.props.extensionId}" crashed:`,
       error,

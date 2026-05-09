@@ -73,6 +73,25 @@ export const EventLogEntryZ = z.object({
 });
 export type EventLogEntry = z.infer<typeof EventLogEntryZ>;
 
+// Phase 25.4.5.3 — payload-snapshot ledger captured around every
+// FSM transition. Companion to event_log; payload_before /
+// payload_after carry the bound entity's data_payload before/after
+// the transition's actions ran. Both fields arrive as JSON-encoded
+// strings (the backend stores them as TEXT) so a downstream consumer
+// can apply its own zod / serde shape on the parsed object.
+export const FsmAuditLogEntryZ = z.object({
+  id: z.string(),
+  job_id: z.string(),
+  event_log_id: z.string().nullable(),
+  from_state: z.string().nullable(),
+  to_state: z.string(),
+  event_type: z.string(),
+  payload_before: z.string().optional().nullable(),
+  payload_after: z.string().optional().nullable(),
+  timestamp: z.string(),
+});
+export type FsmAuditLogEntry = z.infer<typeof FsmAuditLogEntryZ>;
+
 // ---------------------------------------------------------------------------
 // Entities
 // ---------------------------------------------------------------------------

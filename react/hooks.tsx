@@ -48,6 +48,7 @@ import type { RealtimeEvent } from '../client/realtime';
 import type {
   EntityResponse,
   EventLogEntry,
+  FsmAuditLogEntry,
   JobResponse,
   SchemaResponse,
 } from '../types/common';
@@ -322,6 +323,27 @@ export function useJobHistory(
 ): ReadHookResult<EventLogEntry[]> {
   const { jobs } = useFastYoke();
   const result = useReadHook(() => jobs.history(id), [id]);
+  useRealtimeRefetch(
+    (ev) => ev.kind === 'transition' && ev.job_id === id,
+    result.refetch,
+    options?.realtime !== false,
+  );
+  return result;
+}
+
+/**
+ * Phase 25.4.5.3 — payload-snapshot audit ledger for a single job.
+ * Realtime-aware: refetches on every transition for `id`. Companion
+ * to `useJobHistory` (which carries metadata only); use this when
+ * you need the bound entity's `data_payload` before/after each
+ * transition for diff rendering or replay.
+ */
+export function useJobAudit(
+  id: string,
+  options?: RealtimeOptions,
+): ReadHookResult<FsmAuditLogEntry[]> {
+  const { jobs } = useFastYoke();
+  const result = useReadHook(() => jobs.audit(id), [id]);
   useRealtimeRefetch(
     (ev) => ev.kind === 'transition' && ev.job_id === id,
     result.refetch,

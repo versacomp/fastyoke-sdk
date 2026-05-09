@@ -8,7 +8,19 @@ While the package is pre-1.0 **no minor version is guaranteed stable** — any r
 
 ## [Unreleased]
 
-<!-- Accumulate entries here while working on the next release. Move them to a dated, versioned section on publish. -->
+## [0.3.0] — 2026-05-08
+
+FSM observability surface. Adds the audit-ledger client + hook (Phase 25.4.5.3), the `<FsmTimeline />` / `<FsmViewer />` workflow visualizers (Phase 39), and a `renderHistoryDetail` render-prop with the `<FsmAuditDiff />` companion for inline diff disclosures. Minor bump: pure additions, no existing method-signature changes; consumers pinned to `^0.2.x` keep working unchanged and opt into the new exports by bumping their pin.
+
+### Added
+
+- **Phase 25.4.5.3 — payload-snapshot audit ledger.** New `useJobAudit(jobId)` hook + `JobsClient.audit(id)` method backed by `GET /api/v1/tenant/jobs/:id/audit`. Returns `FsmAuditLogEntry[]` (one row per transition) with `payload_before` / `payload_after` snapshots of the bound entity's `data_payload`. Both fields arrive as JSON-encoded strings — parse with whatever shape your domain expects. Companion to `useJobHistory` (which carries metadata only); use the audit hook when you need the diff a replay engine consumes. Realtime-aware: refetches on every transition for `id`.
+- **`<FsmTimeline />` `renderHistoryDetail` render-prop + `<FsmAuditDiff />` companion.** Timeline now accepts a `renderHistoryDetail(entry, index) => ReactNode | null` prop that renders an inline `<details>` disclosure under each history row. Pair with the new `<FsmAuditDiff audit={row} />` component and the `matchAuditEntry(audit, entry)` helper to surface payload before/after diffs without the host having to roll its own diff UI. Render-prop returns `null` to suppress the disclosure for that row, so audit-less history rows stay clean.
+- **Phase 39 — `<FsmTimeline />` + `<FsmViewer />` exports.** Drop-in workflow visualizers for ISVs embedding FastYoke flows in their own apps. Two physically-separate exports so tree-shaking is deterministic:
+  - `FsmTimeline` — standalone vertical timeline. Pure HTML/Tailwind classes; zero reactflow, zero elkjs. Renders the current state, newest-first history (with humanized `__created__` / `__admin_cancel__` sentinels), and a next-actions row driven by the schema's outgoing transitions. Mobile-friendly; meant for L1 support and field-tech surfaces.
+  - `FsmViewer` — composes `FsmTimeline` with a `React.lazy`-imported reactflow canvas. Smart-default mode: `entity` supplied → operator (timeline only); `entity` omitted → engineer (canvas only). Pass `mode='dual'` for both; `mode='operator' | 'engineer'` to lock the surface and hide the built-in mode switcher.
+  - Viewer is **transition-agnostic**: `onTransitionRequest(targetState, payload?)` callback hands the host a state name; the host translates to its `event_type` vocabulary and fires `POST /tenant/jobs/:id/transition` itself. Rejected promises surface as a brief error tone on the originating button.
+  - Composable types: `EntityState = { current_state, history? }` is host-assembled from `/tenant/jobs/:id` + the event_log endpoint. Viewer never fetches.
 
 ## [0.2.0] — 2026-04-21
 

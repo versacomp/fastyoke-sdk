@@ -1,6 +1,6 @@
 {
   "name": "@fastyoke/sdk",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Public SDK for FastYoke extensions — typed API clients, React primitives, and the extension loader contract.",
   "license": "MIT",
   "type": "module",
@@ -26,7 +26,13 @@
   "sideEffects": false,
   "peerDependencies": {
     "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react-dom": "^18.0.0",
+    "quickjs-emscripten": "^0.32.0"
+  },
+  "peerDependenciesMeta": {
+    "quickjs-emscripten": {
+      "optional": true
+    }
   },
   "dependencies": {
     "zod": "^3.23.8"

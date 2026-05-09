@@ -41,6 +41,7 @@ import {
   useEntity,
   useJob,
   useJobHistory,
+  useJobAudit,
   useJobs,
   useSchema,
   useSchemas,
@@ -250,6 +251,30 @@ describe('read hooks — each hook hits the expected endpoint', () => {
     const { result } = renderHook(() => useJobHistory('j-1'), { wrapper });
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(requests[0].url.startsWith('/api/v1/tenant/jobs/j-1/history?')).toBe(true);
+  });
+
+  it('useJobAudit → GET /tenant/jobs/:id/audit', async () => {
+    const { wrapper, requests } = providerWrapper([
+      {
+        json: [
+          {
+            id: 'a-1',
+            job_id: 'j-1',
+            event_log_id: 'e-1',
+            from_state: 'pending',
+            to_state: 'approved',
+            event_type: 'approve',
+            payload_before: '{"weight":12}',
+            payload_after: '{"weight":12}',
+            timestamp: '2026-04-25T00:00:00Z',
+          },
+        ],
+      },
+    ]);
+    const { result } = renderHook(() => useJobAudit('j-1'), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(requests[0].url.startsWith('/api/v1/tenant/jobs/j-1/audit?')).toBe(true);
+    expect(result.current.data?.[0]?.payload_before).toBe('{"weight":12}');
   });
 
   it('useSchemas → GET /tenant/schemas', async () => {
